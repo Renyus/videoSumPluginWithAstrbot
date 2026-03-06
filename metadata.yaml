@@ -1,0 +1,6 @@
+name: video_summary
+display_name: 视频内容总结
+desc: 从 YouTube/Bilibili 视频中提取字幕，AI 自动分析总结内容并输出观点
+author: renyus
+version: 1.0.0
+repo: ""
