@@ -568,7 +568,7 @@ class TranscriptExtractor:
 # ==================== AstrBot 插件 ====================
 
 
-@register("video_summary", "视频内容总结", "从视频中提取字幕文本用于总结", "1.0.0")
+@register("astrbot_plugin_video_summary", "视频内容总结", "一个可以提取B站，油管视频的cc字幕或ai字幕（需cookie）并总结视频内容最后给出观点分析的插件", "1.0.0")
 class VideoSummaryPlugin(Star):
     """AstrBot 视频内容总结插件"""
 

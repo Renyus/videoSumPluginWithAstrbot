@@ -1,6 +1,6 @@
-name: video_summary
+name: astrbot_plugin_video_summary
 display_name: 视频内容总结
-desc: 从 YouTube/Bilibili 视频中提取字幕，AI 自动分析总结内容并输出观点
+desc: 一个可以提取B站，油管视频的cc字幕或ai字幕（需cookie）并总结视频内容最后给出观点分析的插件
 author: renyus
 version: 1.0.0
-repo: ""
+repo: https://github.com/Renyus/videoSumPluginWithAstrbot
