@@ -14,13 +14,14 @@ import urllib.parse
 from typing import Optional
 
 import aiohttp
+from astrbot.api import logger
 from astrbot.api.all import (
     AstrMessageEvent,
     MessageEventResult,
     Star,
-    command,
     register,
 )
+from astrbot.api.event import filter
 from astrbot.api.star import Context
 
 # ==================== 配置 ====================
@@ -63,7 +64,7 @@ def parse_video_url(url: str) -> tuple[str, str]:
 
     # YouTube
     yt_patterns = [
-        r"(?:youtube\.com/watch\?.*v=|youtu\.be/|youtube\.com/shorts/)([a-zA-Z0-9_-]{11})",
+        r"(?:youtube\.com/watch\?.*[?&]v=|youtu\.be/|youtube\.com/shorts/)([a-zA-Z0-9_-]{11})",
     ]
     for pattern in yt_patterns:
         match = re.search(pattern, url)
@@ -150,8 +151,8 @@ class TranscriptExtractor:
 
             ytt_api = YouTubeTranscriptApi()
 
-            # 尝试获取字幕列表
-            transcript_list = ytt_api.list(video_id)
+            # 尝试获取字幕列表（同步操作，放入线程池）
+            transcript_list = await asyncio.to_thread(ytt_api.list, video_id)
 
             # 按语言偏好选择字幕
             transcript = None
@@ -192,8 +193,8 @@ class TranscriptExtractor:
                     "error": "该视频没有可用的字幕",
                 }
 
-            # 获取字幕内容
-            fetched = transcript.fetch()
+            # 获取字幕内容（同步操作，放入线程池）
+            fetched = await asyncio.to_thread(transcript.fetch)
             lines = []
             for snippet in fetched:
                 text = snippet.text.strip()
@@ -233,6 +234,7 @@ class TranscriptExtractor:
             elif "Too Many Requests" in error_msg:
                 error_msg = "请求过于频繁，请稍后再试"
 
+            logger.error(f"YouTube 字幕提取失败: {error_msg}")
             return {
                 **base_result,
                 "success": False,
@@ -415,6 +417,7 @@ class TranscriptExtractor:
             }
 
         except Exception as e:
+            logger.error(f"Bilibili 字幕提取失败: {type(e).__name__}: {e}")
             return {
                 **base_result,
                 "success": False,
@@ -432,6 +435,7 @@ class TranscriptExtractor:
                 if resp.status in (301, 302):
                     return resp.headers.get("Location")
         except Exception:
+            logger.warning(f"b23.tv 短链接解析失败: {short_id}")
             pass
         return None
 
@@ -586,7 +590,7 @@ class VideoSummaryPlugin(Star):
         """插件卸载时清理资源"""
         await self.extractor.close()
 
-    @command("vsummary")
+    @filter.command("vsummary")
     async def handle_vsummary(self, event: AstrMessageEvent):
         """
         处理 /vsummary 命令
