@@ -1,0 +1,6 @@
+{
+    "slug": "video-summary",
+    "version": "1.0.0",
+    "description": "视频内容总结 - 从 YouTube/Bilibili 提取字幕文本",
+    "author": "renyus"
+}
