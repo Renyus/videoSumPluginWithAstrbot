@@ -618,7 +618,7 @@ class VideoSummaryPlugin(Star):
         if not url.startswith(("http://", "https://")):
             url = "https://" + url
 
-        yield event.plain_result("正在提取视频字幕...")
+
 
         result = await self.extractor.extract(url)
 
@@ -636,19 +636,49 @@ class VideoSummaryPlugin(Star):
             "yt-dlp": "yt-dlp 提取",
         }.get(result["source"], result["source"])
 
-        yield event.plain_result(
-            f"字幕已提取 ({source_label}, {len(transcript)} 字符)，正在让 AI 总结..."
-        )
+
 
         # 调用 LLM 进行总结
-        system_prompt = (
-            "你是一个视频内容分析助手。用户会给你一段视频的字幕文本，"
-            "请你阅读后给出以下内容：\n"
-            "1. **视频概述**：用 2-3 句话概括视频的主要内容\n"
-            "2. **关键要点**：列出视频中的关键信息点（用列表格式）\n"
-            "3. **个人观点**：基于内容给出你的分析和看法\n\n"
-            "要求：用中文回答，语言简洁明了，观点客观有见地。"
+        # 获取当前会话信息，以便准确获取其对应的人格
+        conv_mgr = self.context.conversation_manager
+        umo = event.unified_msg_origin
+        cid = await conv_mgr.get_curr_conversation_id(umo)
+        conversation = await conv_mgr.get_conversation(umo, cid) if cid else None
+        conversation_persona_id = conversation.persona_id if conversation else None
+        
+        cfg = self.context.get_config(umo=umo).get("provider_settings", {})
+
+        # 获取当前生效的人格设定
+        (
+            _,
+            persona,
+            _,
+            _,
+        ) = await self.context.persona_manager.resolve_selected_persona(
+            umo=umo,
+            conversation_persona_id=conversation_persona_id,
+            platform_name=event.get_platform_name(),
+            provider_settings=cfg,
         )
+        
+        persona_prompt = persona.get("prompt", "") if persona else ""
+
+        # 视频分析专项指令
+        # 视频分析专项指令
+        video_task = (
+            "用户给你发了一段视频的字幕文本，请你看完后告诉用户视频讲了什么，并发表你的看法。\n"
+            "要求：\n"
+            "1. 拒绝机械的格式（不要用“视频概括”、“关键要点”、“个人观点”这种死板的标题）。\n"
+            "2. 把内容总结和你的吐槽/观点自然地融合在一起，就像和朋友聊天一样。\n"
+            "3. 保持你的人格设定（如果有），语气要生动、有个性。\n"
+            "4. 回答要有重点，不要像报流水账一样复述所有废话。"
+        )
+
+        # 合并人格设定与任务指令
+        if persona_prompt:
+            system_prompt = f"{persona_prompt}\n\n---\n\n{video_task}"
+        else:
+            system_prompt = video_task
 
         prompt = f"视频标题: {title}\n\n以下是视频字幕内容:\n\n{transcript}"
 
